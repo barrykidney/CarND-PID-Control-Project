@@ -31,6 +31,24 @@ class PID {
    */
   double TotalError();
 
+  double GetKp();
+
+  double GetKi();
+  
+  double GetKd();
+
+  double GetPrev_cte();
+
+  double GetSum_cte();
+
+  bool GetStarted();
+
+  void SetPrev_cte(double cte);
+
+  void SetSum_cte(double cte);
+
+  void SetStarted(bool s);
+
  private:
   /**
    * PID Errors
@@ -45,6 +63,10 @@ class PID {
   double Kp;
   double Ki;
   double Kd;
+
+  double prev_cte;
+  double sum_cte;
+  bool started;
 };
 
 #endif  // PID_H
