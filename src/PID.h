@@ -1,6 +1,9 @@
 #ifndef PID_H
 #define PID_H
 
+#include <vector>
+#include <limits>
+
 class PID {
  public:
   /**
@@ -31,25 +34,35 @@ class PID {
    */
   double TotalError();
 
-  double GetKp();
+  void Twiddle();
 
+  std::vector<double> K;
+  std::vector<double> dp_K;
+
+  double GetKp();
   double GetKi();
-  
   double GetKd();
 
-  double GetPrev_cte();
+  double GetDp_Kp();
+  double GetDp_Ki();
+  double GetDp_Kd();
 
-  double GetSum_cte();
+  void SetKp(double Kp_);
+  void SetKi(double Ki_);
+  void SetKd(double Kd_);
 
-  bool GetStarted();
+  void SetDp_Kp(double dp_Kp_);
+  void SetDp_Ki(double dp_Ki_);
+  void SetDp_Kd(double dp_Kd_);
+  
+  // std::vector<double> Twiddle(std::vector<double> params);
 
-  void SetPrev_cte(double cte);
+  double best_error;
+  bool twiddle;
+  int iter;
+  int p_iter;
 
-  void SetSum_cte(double cte);
-
-  void SetStarted(bool s);
-
- private:
+//  private:
   /**
    * PID Errors
    */
@@ -64,9 +77,12 @@ class PID {
   double Ki;
   double Kd;
 
-  double prev_cte;
-  double sum_cte;
+  double dp_Kp;
+  double dp_Ki;
+  double dp_Kd;
+
   bool started;
+  
 };
 
 #endif  // PID_H

@@ -37,7 +37,8 @@ int main() {
   /**
    * TODO: Initialize the pid variable.
    */
-  pid.Init(0.2, 0.004, 3.0);
+  // pid.Init(0.2, 0.004, 3.0);
+  pid.Init(0.05, 0.001, 1.5);
   
 
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
@@ -65,31 +66,16 @@ int main() {
            * NOTE: Feel free to play around with the throttle and speed.
            *   Maybe use another PID controller to control the speed!
            */
-          if (pid.GetStarted()) {
-            pid.SetPrev_cte(cte);
-            pid.SetStarted(true);
-          }
 
-          pid.SetSum_cte(pid.GetSum_cte() + cte);
-          steer_value = -pid.GetKp() * cte - pid.GetKd() * (cte - pid.GetPrev_cte()) - pid.GetKi() * pid.GetSum_cte();
-          pid.SetPrev_cte(cte);
+          pid.UpdateError(cte);
+          pid.Twiddle();
+          steer_value = pid.TotalError();
 
-    //       prev_cte = robot.y
-    // int_cte = 0
-    // for i in range(n):
-    //     cte = robot.y
-    //     diff_cte = cte - prev_cte
-    //     prev_cte = cte
-    //     int_cte += cte
-    //     steer = -tau_p * cte - tau_d * diff_cte - tau_i * int_cte
-    //     robot.move(steer, speed)
-    //     x_trajectory.append(robot.x)
-    //     y_trajectory.append(robot.y)
-
-
-
-
-          
+          if (steer_value > 1) { 
+            steer_value = 1; 
+            } else if (steer_value < -1) {
+              steer_value = -1;
+            }
 
           // DEBUG
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
@@ -101,6 +87,7 @@ int main() {
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+
         }  // end "telemetry" if
       } else {
         // Manual driving
