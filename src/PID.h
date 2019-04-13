@@ -3,6 +3,9 @@
 
 #include <vector>
 #include <limits>
+#include <cmath>
+#include <iostream>
+#include <iomanip>
 
 class PID {
  public:
@@ -34,33 +37,19 @@ class PID {
    */
   double TotalError();
 
-  void Twiddle();
+  void Twiddle(double cte);
 
   std::vector<double> K;
   std::vector<double> dp_K;
 
-  double GetKp();
-  double GetKi();
-  double GetKd();
-
-  double GetDp_Kp();
-  double GetDp_Ki();
-  double GetDp_Kd();
-
-  void SetKp(double Kp_);
-  void SetKi(double Ki_);
-  void SetKd(double Kd_);
-
-  void SetDp_Kp(double dp_Kp_);
-  void SetDp_Ki(double dp_Ki_);
-  void SetDp_Kd(double dp_Kd_);
-  
-  // std::vector<double> Twiddle(std::vector<double> params);
-
   double best_error;
-  bool twiddle;
+  double total_error;
+  double tol;
+  bool started;
+  bool first;
+  bool add_dp_k;
+  int ki;
   int iter;
-  int p_iter;
 
 //  private:
   /**
@@ -73,16 +62,9 @@ class PID {
   /**
    * PID Coefficients
    */ 
-  double Kp;
-  double Ki;
-  double Kd;
-
-  double dp_Kp;
-  double dp_Ki;
-  double dp_Kd;
-
-  bool started;
-  
+  // double Kp;
+  // double Ki;
+  // double Kd;
 };
 
 #endif  // PID_H
