@@ -52,7 +52,9 @@ double PID::TotalError() {
   /**
    * TODO: Calculate and return the total error
    */
-  return - K[0] * p_error - K[2] * d_error - K[1] * i_error;  // TODO: Add your total error calc here!
+  // return - (p_error * 0.25) - (d_error * 25) - (i_error * 0.003);
+  // return - (p_error * 0.4) - (d_error * 12) - (i_error * 0.003);
+  return - (K[0] * p_error - K[2] * d_error - K[1] * i_error);  // TODO: Add your total error calc here!
 }
 
 void PID::Twiddle(double cte) {
@@ -109,5 +111,7 @@ void PID::Twiddle(double cte) {
     total_error = 0.0;
   }
   iter++;
+  } else {
+    std::cout << "FINAL RESULT, kp: " << K[0] << ",ki: " << K[1] << ",kp: " << K[2] << std::endl;
   }
 }

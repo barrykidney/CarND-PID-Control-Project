@@ -68,7 +68,7 @@ int main() {
            */
 
           pid.UpdateError(cte);
-          pid.Twiddle(cte);
+          // pid.Twiddle(cte);
           steer_value = pid.TotalError();
 
           if (steer_value > 1) { 

@@ -1,98 +1,38 @@
-# CarND-Controls-PID
-Self-Driving Car Engineer Nanodegree Program
+## Project: Path Planning
+[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
----
+## 1. Introduction
+The aim of this write up is to describe the process of developing a PID controller for determining steering angle that will enable the vehicle navigate the track provided. I will begin by setting the goals of the project, then I will give a walkthrough of the process and the decisions I made. I will then describe the results of the process, followed by a discussion about the limitations and possible improvements.
 
-## Dependencies
 
-* cmake >= 3.5
- * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1(mac, linux), 3.81(Windows)
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools]((https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
-* [uWebSockets](https://github.com/uWebSockets/uWebSockets)
-  * Run either `./install-mac.sh` or `./install-ubuntu.sh`.
-  * If you install from source, checkout to commit `e94b6e1`, i.e.
-    ```
-    git clone https://github.com/uWebSockets/uWebSockets 
-    cd uWebSockets
-    git checkout e94b6e1
-    ```
-    Some function signatures have changed in v0.14.x. See [this PR](https://github.com/udacity/CarND-MPC-Project/pull/3) for more details.
-* Simulator. You can download these from the [project intro page](https://github.com/udacity/self-driving-car-sim/releases) in the classroom.
+## 2. Goals
+The goals / steps of this project are to build a path planner that that satisfies the following requirements:
+* Implement the Proportional element of the PID controller.
+* Implement the Derivative element of the PID controller.
+* Implement the Integral element of the PID controller.
+* Implement the Twiddle algorithm to tune parameters.
 
-Fellow students have put together a guide to Windows set-up for the project [here](https://s3-us-west-1.amazonaws.com/udacity-selfdrivingcar/files/Kidnapped_Vehicle_Windows_Setup.pdf) if the environment you have set up for the Sensor Fusion projects does not work for this project. There's also an experimental patch for windows in this [PR](https://github.com/udacity/CarND-PID-Control-Project/pull/3).
 
-## Basic Build Instructions
+## 3. Walkthrough
 
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make`
-4. Run it: `./pid`. 
+### 3.1 The Proportional element of the PID controller
+The first and most important part of the PID controller is the Proportional element. This ensures that the vehicle will set its steering angle to be inversely proportionally to the cross track error or the distance the vehicle is from its desired location, this will cause the vehicle to steer at its desired location. By adding a multiplier we can control the response strength of the vehicle. I first implemented the P element of the PID controller without the control multiplier (essentially a tau of 1.0), I was surprised how quickly and smoothly the vehicle converged on the middle of the track but it soon began to oscillate until it left the track. I then changed the tau value to 0.1 and observed, the vehicle took longer to converge and the oscillations grew at a slower pace but the result was the same in that the oscillations caused the vehicle to leave the track.
 
-Tips for setting up your environment can be found [here](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/23d376c7-0195-4276-bdf0-e02f1f3c665d)
+### 3.2 The Derivative element of the PID controller
+In order to correct for the oscillations observed when only the Proportional part of the PID controller is implemented we subtract the derivative (change in cross track error over time). The Proportional part of the controller should ensure that (unless the vehicle is entering a corner) the cross track error is either reducing or at a minimal level (converged). If the cross track error is reducing quickly we subtract a larger amount from the steering angle to avoid an overshoot. I found that with a P modifier of 0.1 and no modifier applied to the derivative this is enough to drive the track successfully although the vehicle struggles to react to corners in time and ends up going very wide. To allow for this I increased the P modifier to 0.3 to allow the vehicle to react more quickly but this resulted in the Derivative being unable to keep the oscillations under control. I then added a Derivative multiplier of 6.0, this controller the oscillations on the straights but the vehicles navigated corners in a jerky manner.
 
-## Editor Settings
+### 3.3 The Integral element of the PID controller
+The final part of the PID controller is the Integral component which adjusts for consistent error. We compensate for a consistent cross tack error by summing the error over time and adjusting the steering angle proportionally to the result. Due to the fact that this element is the sum of the cross track error over time it will quickly become large therefor intuitively the multiplier should be small. I first implemented the Integral component into the controller without a multiplier and as expected, the Integral component quickly overwhelmed both the proportional and the derivative components causing the vehicle to steer aggressively towards the centre of the track and to overshoot badly. I then added a multiplier and incrementally reduced it (to 0.001) until the vehicle could again navigate the track successfully.
 
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
+### 3.4 The Twiddle algorithm
+The Twiddle algorithm iterates until on parameter adjustments until a minimum is error reached. An iteration consists of, a parameter is adjusted by adding an amount to it, then the average error is calculated over a set time period. The resultant error is checked against the pervious best error, if the adjustment resulted in an improved error the adjustment is retained and the adjustment amount is increased if not a the adjustment is made in reverse (subtracted) and the process is repeated. If both addition and subtraction adjustments fail to produce an improved error the parameter is reset to its starting value and the adjustment amount is reduced. This process is repeated until the adjustment amounts are below a set tolerance.
+I set my twiddle iterations to 2200 timesteps this ensured the vehicle encounters sufficient variation of track conditions (corners and straights) so that its performance/average error can be accurately evaluated. The first 200 timesteps of the iteration is to allow the vehicle to converge and the remaining 2000 timesteps is the evaluation period. During the convergence period the average error is not maintained. When the algorithm is initialised no parameters are adjusted for the first test period so we can get a baseline error, otherwise due to the fact that the best error is initialised to infinity the first adjustment will be accepted regardless of whether it is an improvement over the initial parameters.
+I placed the code for the twiddle algorithm in a twiddle method in the PID class, here is a brief run through of the code. First we check if the sum of the adjustment amounts (dp_k) is less than the tolerance. Next we check if we are engaged in the convergence period (timestep < 200), if not we increment the total error by the square of the CTE. At timestep 200 of the iteration we set the parameter adjustment. The code at this point is similar to the psuedo code demonstrated in the learning material except that it is implemented with 'if - else if' statements, this is because the algorithm must only complete a single pass for each method call. Because of this, state must be maintained between the method calls, this is achieved using the variables 'first' and 'add_dp_k'. The 'first' variable tells the algorithm if this is the first iteration, if so it should not make an adjustment to the parameters. The 'add_dp_k' variable tells the algorithm if the addition adjustment has been tried and should therefore move on to the subtraction adjustment.
+In order for the Twiddle algorithm to work parameters must be found that at least enable the vehicle to stay on the track, otherwise the vehicle will get stuck and return the same error regardless of parameter choice.
 
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
 
-## Code Style
+## 4. Results/Discussion
+The result of implementing a PID controller and training its parameters using the Twiddle algorithm was that the vehicle could successfully navigate the provided track. There are areas of the track where the vehicle exhibits oscillating behaviour, for example in the tight left hand turn near the end of the lap. I reduced this behaviour somewhat by limiting the steering angle to between 0.5 and -0.5 but I was unable to eliminate it entirely. A possible cause of this oscillating behaviour in corners is that the line that the vehicle is following (the reference point that the CTE is measured against) is not smooth, it is a series of straight lines tracing a curve. While the vehicle is traversing a turn it converges on the short straight sections but when it travels from one straight section to the next it is forced to re-adjust quickly before converging again, resulting in the jerky steering behaviour observed.
+I should also note that the tuned parameters output by the Twiddle algorithm were not hugely different from the parameters I found through trial and error while implementing the PID controller, and it did not result in a significant improvement in performance. This may be because I found parameters that were close to a local minimum and Twiddle simply converged on that local minimum. To identify if this was indeed the issue I set multiple different starting parameters but was unable to find a better global minimum.
 
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/e8235395-22dd-4b87-88e0-d108c5e5bbf4/concepts/6a4d8d42-6a04-4aa6-b284-1697c0fd6562)
-for instructions and the project rubric.
-
-## Hints!
-
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
-
+## 6.0 References:
